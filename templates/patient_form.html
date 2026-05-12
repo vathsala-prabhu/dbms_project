@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if patient else 'New' }} Patient{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ 'Edit Patient' if patient else 'Add New Patient' }}</div>
+    <div class="page-sub">{{ patient.full_name if patient else 'Fill in the details below' }}</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('patients') }}">← Back</a>
+  </div>
+</div>
+<div class="page-body">
+  <div class="card" style="max-width:680px;margin:0 auto;">
+    <div class="card-head"><div class="card-title">Patient Information</div></div>
+    <div class="card-body">
+      {% if error %}<div class="alert alert-error">⚠ {{ error }}</div>{% endif %}
+      <form method="POST">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Patient ID</label>
+            <input class="form-control" type="text" name="patient_id"
+              value="{{ patient.patient_id if patient else '' }}"
+              placeholder="Auto-generated if blank"
+              {{ 'readonly' if patient else '' }}/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input class="form-control" type="text" name="full_name" required
+              value="{{ patient.full_name if patient else '' }}" placeholder="e.g. John Doe"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input class="form-control" type="date" name="dob"
+              value="{{ patient.date_of_birth if patient else '' }}"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select class="form-control" name="gender">
+              <option value="">— Select —</option>
+              {% for g in ['Male','Female','Other','Prefer not to say'] %}
+              <option {{ 'selected' if patient and patient.gender==g else '' }}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Ethnicity</label>
+            <input class="form-control" type="text" name="ethnicity"
+              value="{{ patient.ethnicity if patient else '' }}" placeholder="e.g. South Asian"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input class="form-control" type="text" name="phone"
+              value="{{ patient.phone if patient else '' }}" placeholder="+91 ..."/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-control" type="email" name="email"
+            value="{{ patient.email if patient else '' }}" placeholder="patient@email.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <textarea class="form-control" name="address" rows="2"
+            placeholder="Street, City, State">{{ patient.address if patient else '' }}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Family History</label>
+          <textarea class="form-control" name="family_history" rows="3"
+            placeholder="Relevant hereditary conditions, family medical history...">{{ patient.family_history if patient else '' }}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" name="notes" rows="2"
+            placeholder="Additional clinical notes...">{{ patient.notes if patient else '' }}</textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-primary btn-lg" type="submit">
+            {{ '💾 Save Changes' if patient else '➕ Add Patient' }}
+          </button>
+          <a class="btn btn-secondary btn-lg" href="{{ url_for('patients') }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

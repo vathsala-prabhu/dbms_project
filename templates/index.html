@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GenomePath — Clinical DNA Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #f4f6f9;
+      --bg2:        #eaecf2;
+      --surface:    #ffffff;
+      --surface2:   #f8f9fc;
+      --border:     #dde1ea;
+      --border2:    #c5cbda;
+      --navy:       #0d1f3c;
+      --navy2:      #1a3560;
+      --blue:       #1557d0;
+      --blue2:      #1e6bff;
+      --blue-pale:  #e8efff;
+      --teal:       #0891b2;
+      --teal-pale:  #e0f5f9;
+      --red:        #dc2626;
+      --red-pale:   #fef2f2;
+      --amber:      #d97706;
+      --amber-pale: #fffbeb;
+      --green:      #059669;
+      --green-pale: #ecfdf5;
+      --text:       #0d1f3c;
+      --text2:      #4a5568;
+      --text3:      #8896a8;
+      --font:       'IBM Plex Sans', sans-serif;
+      --mono:       'IBM Plex Mono', monospace;
+      --display:    'Bebas Neue', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── Top Header Bar ── */
+    .header {
+      background: var(--navy);
+      padding: 0 2rem;
+      display: flex;
+      align-items: stretch;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-right: 2rem;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .brand-mark {
+      width: 32px; height: 32px;
+      background: var(--blue2);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .brand-name {
+      font-family: var(--display);
+      font-size: 1.5rem;
+      letter-spacing: 0.06em;
+      color: #fff;
+    }
+    .brand-name em { color: #5b9bff; font-style: normal; }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding-left: 1.5rem;
+      flex: 1;
+    }
+
+    .nav-item {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 1.2rem;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .nav-item.active { color: #fff; border-bottom-color: var(--blue2); }
+    .nav-item:hover { color: rgba(255,255,255,0.85); }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-left: auto;
+    }
+
+    .meta-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      background: #22d3a0;
+      border-radius: 50%;
+      animation: livepulse 2s infinite;
+    }
+    @keyframes livepulse {
+      0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,211,160,0.4)}
+      50%{opacity:0.6;box-shadow:0 0 0 4px rgba(34,211,160,0)}
+    }
+
+    /* ── Sub-header / breadcrumb ── */
+    .subheader {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 44px;
+    }
+
+    .breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text3);
+    }
+    .breadcrumb span { color: var(--text2); font-weight: 500; }
+    .breadcrumb-sep { color: var(--border2); }
+
+    .subheader-actions {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .badge {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+    }
+    .badge-blue   { background: var(--blue-pale); color: var(--blue); border: 1px solid #c0d3ff; }
+    .badge-green  { background: var(--green-pale); color: var(--green); border: 1px solid #a7f3d0; }
+    .badge-amber  { background: var(--amber-pale); color: var(--amber); border: 1px solid #fcd34d; }
+    .badge-red    { background: var(--red-pale); color: var(--red); border: 1px solid #fca5a5; }
+    .badge-navy   { background: var(--navy); color: #fff; }
+
+    /* ── Page Layout ── */
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      grid-template-rows: auto;
+      gap: 1.2rem;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .panel-title-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .panel-icon {
+      width: 24px; height: 24px;
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .pi-blue { background: var(--blue-pale); }
+    .pi-teal { background: var(--teal-pale); }
+
+    .panel-title {
+      font-size: 12px; font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+
+    .panel-tag {
+      font-size: 10px; color: var(--text3);
+      font-family: var(--mono);
+    }
+
+    .panel-body { padding: 16px; }
+
+    /* ── Form ── */
+    .f-group { margin-bottom: 14px; }
+
+    .f-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--text2);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .f-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 8px 10px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .f-input:focus {
+      outline: none;
+      border-color: var(--blue2);
+      background: #f0f5ff;
+    }
+    .f-input::placeholder { color: var(--text3); }
+
+    .f-textarea {
+      font-family: var(--mono);
+      font-size: 12px;
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .f-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .f-check-label {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 12px; color: var(--text2);
+    }
+    .f-check-label input[type="checkbox"] {
+      width: 14px; height: 14px; accent-color: var(--blue2); cursor: pointer;
+    }
+
+    /* ── Buttons ── */
+    .btn-main {
+      width: 100%;
+      padding: 10px;
+      background: var(--navy);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: 4px;
+    }
+    .btn-main:hover:not(:disabled) { background: var(--navy2); }
+    .btn-main:active:not(:disabled) { transform: scale(0.99); }
+    .btn-main:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-sm {
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 5px;
+      color: var(--text2);
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-sm:hover { border-color: var(--blue2); color: var(--blue); background: var(--blue-pale); }
+
+    .btn-danger-sm {
+      background: transparent;
+      border: none;
+      color: var(--text3);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .btn-danger-sm:hover { color: var(--red); background: var(--red-pale); }
+
+    /* ── Spinner ── */
+    .spin {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: rotate 0.55s linear infinite;
+    }
+    @keyframes rotate { to { transform: rotate(360deg); } }
+
+    /* ── Right column layout ── */
+    .right-col {
+      display: flex; flex-direction: column; gap: 1.2rem;
+    }
+
+    /* ── Risk Hero ── */
+    .risk-hero {
+      background: var(--navy);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .risk-hero-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(21,87,208,0.4) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .risk-hero-inner {
+      position: relative;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .risk-gauge {
+      flex-shrink: 0;
+      width: 80px; height: 80px;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .risk-gauge svg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 6; }
+    .gauge-fill  { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+
+    .gauge-label {
+      position: relative; z-index: 1;
+      text-align: center;
+    }
+    .gauge-pct {
+      font-family: var(--display);
+      font-size: 1.4rem;
+      color: #fff;
+      letter-spacing: 0.04em;
+      line-height: 1;
+    }
+    .gauge-sub {
+      font-size: 9px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .risk-info { flex: 1; }
+
+    .risk-level-label {
+      font-family: var(--display);
+      font-size: 2rem;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .rl-high   { color: #ff6b6b; }
+    .rl-medium { color: #fbbf24; }
+    .rl-low    { color: #34d399; }
+    .rl-none   { color: rgba(255,255,255,0.6); }
+
+    .risk-patient-name {
+      font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85);
+      margin-bottom: 8px;
+    }
+
+    .risk-counts {
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .rcount {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: rgba(255,255,255,0.5);
+    }
+    .rc-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .rc-red    { background: #ff6b6b; }
+    .rc-amber  { background: #fbbf24; }
+    .rc-green  { background: #34d399; }
+
+    .risk-rec {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.07);
+      border-left: 3px solid rgba(255,255,255,0.2);
+      border-radius: 0 6px 6px 0;
+      font-size: 12px;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.5;
+    }
+
+    /* ── Stats Strip ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .stat-cell {
+      padding: 12px 10px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell:hover { background: var(--bg); }
+
+    .sc-val {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--blue);
+    }
+    .sc-lbl {
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    /* ── Mutation Table ── */
+    .mut-table-wrap {
+      overflow-x: auto;
+    }
+
+    .mut-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .mut-table thead tr {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mut-table th {
+      padding: 8px 14px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .mut-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+      animation: rowIn 0.25s ease both;
+    }
+    @keyframes rowIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
+
+    .mut-table tbody tr:last-child { border-bottom: none; }
+    .mut-table tbody tr:hover { background: var(--bg); }
+
+    .mut-table td {
+      padding: 10px 14px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .td-disease { font-weight: 500; font-size: 13px; }
+    .td-gene    { font-family: var(--mono); color: var(--blue); font-size: 11px; }
+    .td-snp     { font-family: var(--mono); color: var(--text3); font-size: 11px; }
+    .td-pos     { font-family: var(--mono); color: var(--text3); font-size: 11px; }
+    .td-desc    { color: var(--text2); max-width: 220px; line-height: 1.45; }
+
+    .risk-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .rt-High   { background: var(--red-pale); color: var(--red); border: 1px solid #fca5a5; }
+    .rt-Medium { background: var(--amber-pale); color: var(--amber); border: 1px solid #fcd34d; }
+    .rt-Low    { background: var(--green-pale); color: var(--green); border: 1px solid #a7f3d0; }
+
+    /* ── Empty states ── */
+    .empty {
+      padding: 32px 16px;
+      text-align: center;
+    }
+    .empty-icon { font-size: 28px; opacity: 0.3; margin-bottom: 8px; }
+    .empty-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
+    .empty-sub   { font-size: 12px; color: var(--text3); }
+
+    .no-mutation {
+      padding: 24px;
+      display: flex; align-items: center; gap: 12px;
+      background: var(--green-pale);
+      border-top: 1px solid #a7f3d0;
+    }
+    .no-mutation-icon { font-size: 22px; }
+    .no-mutation-title { font-size: 13px; font-weight: 600; color: var(--green); }
+    .no-mutation-sub   { font-size: 12px; color: #059669; opacity: 0.8; margin-top: 2px; }
+
+    /* ── Error ── */
+    .error-bar {
+      margin: 0 16px 16px;
+      padding: 10px 12px;
+      background: var(--red-pale);
+      border: 1px solid #fca5a5;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--red);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ── Waiting overlay ── */
+    .waiting-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 8px;
+    }
+    .footer-disc { font-size: 11px; color: var(--text3); }
+    .footer-disc strong { color: var(--amber); }
+    .footer-ver { font-family: var(--mono); font-size: 10px; color: var(--border2); }
+
+    /* ── Span 2 cols ── */
+    .span2 { grid-column: 1 / -1; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 800px) {
+      .page { grid-template-columns: 1fr; padding: 1rem; }
+      .stats-strip { grid-template-columns: repeat(3,1fr); }
+      .header-nav, .header-meta .meta-item:not(:last-child) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="brand-mark">🧬</div>
+      <div class="brand-name">Genome<em>Path</em></div>
+    </div>
+    <nav class="header-nav">
+      <div class="nav-item active">Analysis</div>
+      <div class="nav-item">Patient Records</div>
+      <div class="nav-item">Mutation Library</div>
+      <div class="nav-item">Reports</div>
+    </nav>
+    <div class="header-meta">
+      <div class="meta-item"><div class="live-dot"></div> System Live</div>
+      <div class="meta-item">Dept. Genomic Medicine</div>
+    </div>
+  </header>
+
+  <!-- Sub-header -->
+  <div class="subheader">
+    <div class="breadcrumb">
+      Genomics <span class="breadcrumb-sep">›</span>
+      <span>DNA Sequence Analyzer</span>
+    </div>
+    <div class="subheader-actions">
+      <span class="badge badge-blue">NCBI dbSNP</span>
+      <span class="badge badge-blue">ClinVar</span>
+      <span class="badge badge-navy">v2.0</span>
+    </div>
+  </div>
+
+  <!-- Page -->
+  <div class="page">
+
+    <!-- Left: Input -->
+    <div class="panel" style="grid-row: 1 / 3;">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <div class="panel-icon pi-blue">📋</div>
+          <div>
+            <div class="panel-title">Patient Submission</div>
+            <div class="panel-tag">sequence_input.fasta</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="f-group">
+          <label class="f-label">Patient Name / ID</label>
+          <input class="f-input" type="text" id="patientName" placeholder="e.g. Ravi Sharma / PT-00421" />
+        </div>
+
+        <div class="f-group">
+          <label class="f-label">DNA Sequence</label>
+          <textarea class="f-input f-textarea" id="dnaSequence" placeholder="Paste raw sequence (ATCG...) or FASTA format..."></textarea>
+        </div>
+
+        <div class="f-row">
+          <label class="f-check-label">
+            <input type="checkbox" id="isFasta" />
+            FASTA format input
+          </label>
+          <button class="btn-sm" id="loadSample">⚗ Load sample</button>
+        </div>
+
+        <button class="btn-main" id="analyzeBtn">
+          <span id="btnText">🔬 Run Genomic Analysis</span>
+          <span id="btnLoader" class="hidden"><div class="spin"></div> Analyzing...</span>
+        </button>
+
+        <div id="input-error" class="hidden" style="margin-top:12px;"></div>
+
+        <!-- Info box -->
+        <div style="margin-top:18px; padding:12px; background:var(--bg); border-radius:7px; border:1px solid var(--border);">
+          <div style="font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Screened Mutations</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">
+            <span class="badge badge-red">Sickle Cell</span>
+            <span class="badge badge-red">Breast Cancer</span>
+            <span class="badge badge-amber">Hemochromatosis</span>
+            <span class="badge badge-amber">Alzheimer's</span>
+            <span class="badge badge-green">Cardiovascular</span>
+            <span class="badge badge-amber">Type 2 Diabetes</span>
+            <span class="badge badge-amber">Iron Overload</span>
+            <span class="badge badge-green">Melanoma</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="margin-top:14px; display:flex; gap:14px;">
+          <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text3);">
+            <div style="width:8px;height:8px;background:var(--red);border-radius:50%;"></div> High Risk
+          </div>
+          <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text3);">
+            <div style="width:8px;height:8px;background:var(--amber);border-radius:50%;"></div> Medium Risk
+          </div>
+          <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text3);">
+            <div style="width:8px;height:8px;background:var(--green);border-radius:50%;"></div> Low Risk
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Empty / Results -->
+    <div class="right-col" id="right-empty">
+      <div class="waiting-panel">
+        <div class="empty">
+          <div class="empty-icon">🔭</div>
+          <div class="empty-title">Awaiting sequence input</div>
+          <div class="empty-sub">Submit a DNA sequence on the left to begin genetic risk analysis.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col hidden" id="right-results">
+
+      <!-- Risk Hero -->
+      <div class="risk-hero" id="risk-hero-card">
+        <div class="risk-hero-bg"></div>
+        <div class="risk-hero-inner" id="risk-hero-inner"></div>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="stats-strip hidden" id="stats-strip"></div>
+
+      <!-- Mutations panel -->
+      <div class="panel hidden" id="mutations-panel">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <div class="panel-icon pi-teal">🧫</div>
+            <div>
+              <div class="panel-title">Mutation Findings</div>
+              <div class="panel-tag" id="mut-panel-tag">Variant scan results</div>
+            </div>
+          </div>
+          <button class="btn-danger-sm" id="clearBtn">✕ Clear</button>
+          <button class="btn-sm" id="downloadPdf" style="margin-left:8px;">⬇ Download PDF Report</button>
+        </div>
+        <div id="mutations-body"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-disc"><strong>⚠ Disclaimer:</strong> For educational & research purposes only. Not a substitute for clinical genetic testing or professional medical advice.</div>
+    <div class="footer-ver">GenomePath v2.0 · Flask + Biopython + MySQL</div>
+  </footer>
+
+  <script>
+    const analyzeBtn   = document.getElementById('analyzeBtn');
+    const btnText      = document.getElementById('btnText');
+    const btnLoader    = document.getElementById('btnLoader');
+    const loadSample   = document.getElementById('loadSample');
+    const clearBtn     = document.getElementById('clearBtn');
+    const dnaInput     = document.getElementById('dnaSequence');
+    const patientInput = document.getElementById('patientName');
+    const isFastaChk   = document.getElementById('isFasta');
+    const rightEmpty   = document.getElementById('right-empty');
+    const rightResults = document.getElementById('right-results');
+    const riskHeroInner= document.getElementById('risk-hero-inner');
+    const statsStrip   = document.getElementById('stats-strip');
+    const mutPanel     = document.getElementById('mutations-panel');
+    const mutBody      = document.getElementById('mutations-body');
+    const mutTag       = document.getElementById('mut-panel-tag');
+    const inputError   = document.getElementById('input-error');
+
+    loadSample.addEventListener('click', async () => {
+      try {
+        const r = await fetch('/sample');
+        const d = await r.json();
+        dnaInput.value     = d.sample_sequence;
+        patientInput.value = 'Sample Patient';
+        isFastaChk.checked = false;
+        clearInputError();
+      } catch { showInputError('Could not load sample. Is Flask running?'); }
+    });
+
+    analyzeBtn.addEventListener('click', async () => {
+      const seq = dnaInput.value.trim();
+      const pat = patientInput.value.trim() || 'Anonymous';
+      if (!seq) { showInputError('Please paste a DNA sequence first.'); return; }
+      clearInputError();
+      setLoading(true);
+      const payload = { patient_name:pat, dna_sequence:seq, is_fasta:isFastaChk.checked };
+      lastPayload   = payload;
+      try {
+        const res  = await fetch('/analyze', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        data.error ? showInputError(data.error) : renderResults(data);
+      } catch { showInputError('Connection failed — make sure Flask is running on port 5000.'); }
+      finally { setLoading(false); }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      rightResults.classList.add('hidden');
+      rightEmpty.classList.remove('hidden');
+      riskHeroInner.innerHTML = '';
+      statsStrip.classList.add('hidden');
+      mutPanel.classList.add('hidden');
+    });
+
+    // ── PDF Download ──────────────────────────────
+    const downloadPdf    = document.getElementById('downloadPdf');
+    let lastPayload      = null;
+
+    downloadPdf.addEventListener('click', async () => {
+      if (!lastPayload) { showInputError('Run an analysis first.'); return; }
+      const orig = downloadPdf.textContent;
+      downloadPdf.disabled    = true;
+      downloadPdf.textContent = 'Generating…';
+      try {
+        const res = await fetch('/report', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(lastPayload)
+        });
+        if (!res.ok) throw new Error('PDF generation failed.');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m  = cd.match(/filename="?([^"]+)"?/);
+        a.download = m ? m[1] : 'DNA_Report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        showInputError(e.message || 'Could not generate PDF.');
+      } finally {
+        downloadPdf.disabled    = false;
+        downloadPdf.textContent = orig;
+      }
+    });
+
+    function renderResults(data) {
+      const { patient_name, sequence_stats, matches, risk_summary } = data;
+      const risk = risk_summary.overall_risk;
+
+      // ── Risk Hero ──
+      const gaugeVal = {High:75, Medium:45, Low:20, 'None Detected':5}[risk] || 5;
+      const gaugeColor = {High:'#ff6b6b', Medium:'#fbbf24', Low:'#34d399', 'None Detected':'rgba(255,255,255,0.3)'}[risk];
+      const r = 34, circ = 2 * Math.PI * r;
+      const dash = (gaugeVal / 100) * circ;
+      const rlClass = {High:'rl-high', Medium:'rl-medium', Low:'rl-low', 'None Detected':'rl-none'}[risk];
+      const riskLabel = risk === 'None Detected' ? 'All Clear' : risk + ' Risk';
+
+      riskHeroInner.innerHTML = `
+        <div class="risk-gauge">
+          <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+            <circle class="gauge-track" cx="40" cy="40" r="${r}"/>
+            <circle class="gauge-fill" cx="40" cy="40" r="${r}"
+              stroke="${gaugeColor}"
+              stroke-dasharray="${dash.toFixed(1)} ${(circ-dash).toFixed(1)}"/>
+          </svg>
+          <div class="gauge-label">
+            <div class="gauge-pct">${gaugeVal}%</div>
+            <div class="gauge-sub">Risk</div>
+          </div>
+        </div>
+        <div class="risk-info">
+          <div class="risk-level-label ${rlClass}">${riskLabel}</div>
+          <div class="risk-patient-name">${esc(patient_name)}</div>
+          <div class="risk-counts">
+            <div class="rcount"><div class="rc-dot rc-red"></div>${risk_summary.high_risk_count} High</div>
+            <div class="rcount"><div class="rc-dot rc-amber"></div>${risk_summary.medium_risk_count} Medium</div>
+            <div class="rcount"><div class="rc-dot rc-green"></div>${risk_summary.low_risk_count} Low</div>
+          </div>
+          <div class="risk-rec">${esc(risk_summary.recommendation)}</div>
+        </div>
+      `;
+
+      // ── Stats Strip ──
+      const bc = sequence_stats.base_counts;
+      statsStrip.innerHTML = `
+        ${cell(sequence_stats.length.toLocaleString(), 'Length (bp)')}
+        ${cell(sequence_stats.gc_content + '%', 'GC Content')}
+        ${cell(bc.A, 'Adenine')}
+        ${cell(bc.T, 'Thymine')}
+        ${cell(bc.C, 'Cytosine')}
+        ${cell(bc.G, 'Guanine')}
+      `;
+      statsStrip.classList.remove('hidden');
+
+      // ── Mutations ──
+      mutTag.textContent = `${matches.length} variant(s) detected`;
+      if (matches.length === 0) {
+        mutBody.innerHTML = `
+          <div class="no-mutation">
+            <div class="no-mutation-icon">✅</div>
+            <div>
+              <div class="no-mutation-title">No Known Mutations Detected</div>
+              <div class="no-mutation-sub">Sequence did not match any entries in the mutation database.</div>
+            </div>
+          </div>
+        `;
+      } else {
+        mutBody.innerHTML = `
+          <div class="mut-table-wrap">
+            <table class="mut-table">
+              <thead>
+                <tr>
+                  <th>Disease</th>
+                  <th>Risk</th>
+                  <th>Gene</th>
+                  <th>SNP ID</th>
+                  <th>Strand</th>
+                  <th>Position</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${matches.map((m, i) => `
+                  <tr style="animation-delay:${i*0.06}s">
+                    <td class="td-disease">${esc(m.disease)}</td>
+                    <td><span class="risk-tag rt-${m.risk_level}">${m.risk_level}</span></td>
+                    <td class="td-gene">${esc(m.gene)}</td>
+                    <td class="td-snp">${esc(m.snp_id)}</td>
+                    <td class="td-snp">${esc(m.strand)}</td>
+                    <td class="td-pos">${m.position}</td>
+                    <td class="td-desc">${esc(m.description)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      mutPanel.classList.remove('hidden');
+
+      rightEmpty.classList.add('hidden');
+      rightResults.classList.remove('hidden');
+    }
+
+    function cell(val, lbl) {
+      return `<div class="stat-cell"><div class="sc-val">${val}</div><div class="sc-lbl">${lbl}</div></div>`;
+    }
+
+    function setLoading(s) {
+      analyzeBtn.disabled = s;
+      btnText.classList.toggle('hidden', s);
+      btnLoader.classList.toggle('hidden', !s);
+    }
+
+    function showInputError(msg) {
+      inputError.innerHTML = `<div class="error-bar">⚠ ${esc(msg)}</div>`;
+      inputError.classList.remove('hidden');
+    }
+
+    function clearInputError() { inputError.classList.add('hidden'); }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+
+</body>
+</html>

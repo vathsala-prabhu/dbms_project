@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}GenomePath{% endblock %} — Clinical DNA Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#f4f6f9; --bg2:#eaecf2; --surface:#fff; --surface2:#f8f9fc;
+      --border:#dde1ea; --border2:#c5cbda;
+      --navy:#0d1f3c; --navy2:#1a3560;
+      --blue:#1557d0; --blue2:#1e6bff; --blue-pale:#e8efff;
+      --teal:#0891b2; --teal-pale:#e0f5f9;
+      --red:#dc2626; --red-pale:#fef2f2;
+      --amber:#d97706; --amber-pale:#fffbeb;
+      --green:#059669; --green-pale:#ecfdf5;
+      --text:#0d1f3c; --text2:#4a5568; --text3:#8896a8;
+      --font:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace; --display:'Bebas Neue',sans-serif;
+      --sidebar-w: 220px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;display:flex;flex-direction:column;}
+
+    /* ── Topbar ── */
+    .topbar{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 1.5rem;gap:1rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+    .topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+    .brand-mark{width:30px;height:30px;background:var(--blue2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    .brand-name{font-family:var(--display);font-size:1.4rem;letter-spacing:.06em;color:#fff;}
+    .brand-name em{color:#5b9bff;font-style:normal;}
+    .topbar-sep{width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 .5rem;}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:1rem;}
+    .live-dot{width:6px;height:6px;background:#22d3a0;border-radius:50%;animation:livepulse 2s infinite;}
+    @keyframes livepulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,211,160,.4)}50%{opacity:.6;box-shadow:0 0 0 4px rgba(34,211,160,0)}}
+    .topbar-info{font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.04em;display:flex;align-items:center;gap:6px;}
+    .topbar-user{display:flex;align-items:center;gap:8px;}
+    .user-avatar{width:28px;height:28px;background:var(--blue2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;}
+    .user-name{font-size:12px;color:rgba(255,255,255,.8);font-weight:500;}
+    .user-role{font-size:10px;color:rgba(255,255,255,.4);font-family:var(--mono);}
+    .btn-logout{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:5px;color:rgba(255,255,255,.5);font-size:11px;padding:4px 10px;cursor:pointer;transition:.15s;}
+    .btn-logout:hover{background:rgba(255,255,255,.12);color:#fff;}
+
+    /* ── Layout ── */
+    .app-body{display:flex;flex:1;}
+
+    /* ── Sidebar ── */
+    .sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1rem 0;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;}
+    .sidebar-section{padding:0 .75rem;margin-bottom:1.5rem;}
+    .sidebar-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:0 .5rem;margin-bottom:.4rem;}
+    .nav-link{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;text-decoration:none;transition:.12s;border:none;background:none;width:100%;}
+    .nav-link:hover{background:var(--bg);color:var(--text);}
+    .nav-link.active{background:var(--blue-pale);color:var(--blue);}
+    .nav-icon{font-size:14px;width:18px;text-align:center;}
+    .nav-badge{margin-left:auto;background:var(--red-pale);color:var(--red);font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;}
+    .nav-badge.green{background:var(--green-pale);color:var(--green);}
+    .sidebar-footer{margin-top:auto;padding:.75rem;border-top:1px solid var(--border);}
+    .sidebar-version{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;}
+
+    /* ── Main Content ── */
+    .main{flex:1;min-width:0;}
+    .page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;}
+    .page-title{font-size:15px;font-weight:600;color:var(--text);}
+    .page-sub{font-size:12px;color:var(--text3);margin-top:1px;}
+    .page-actions{display:flex;gap:8px;align-items:center;}
+    .page-body{padding:1.5rem;}
+
+    /* ── Cards ── */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+    .card-head{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+    .card-title{font-size:12px;font-weight:600;color:var(--text);}
+    .card-sub{font-size:11px;color:var(--text3);font-family:var(--mono);}
+    .card-body{padding:16px;}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:.15s;text-decoration:none;font-family:var(--font);}
+    .btn-primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+    .btn-primary:hover{background:var(--navy2);}
+    .btn-secondary{background:var(--surface);color:var(--text2);border-color:var(--border2);}
+    .btn-secondary:hover{border-color:var(--blue2);color:var(--blue);background:var(--blue-pale);}
+    .btn-danger{background:var(--red-pale);color:var(--red);border-color:#fca5a5;}
+    .btn-danger:hover{background:#fee2e2;}
+    .btn-success{background:var(--green-pale);color:var(--green);border-color:#a7f3d0;}
+    .btn-sm{padding:4px 10px;font-size:11px;}
+    .btn-lg{padding:9px 20px;font-size:13px;font-weight:600;}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+
+    /* ── Badges ── */
+    .badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:4px;display:inline-block;}
+    .badge-blue{background:var(--blue-pale);color:var(--blue);border:1px solid #c0d3ff;}
+    .badge-green{background:var(--green-pale);color:var(--green);border:1px solid #a7f3d0;}
+    .badge-amber{background:var(--amber-pale);color:var(--amber);border:1px solid #fcd34d;}
+    .badge-red{background:var(--red-pale);color:var(--red);border:1px solid #fca5a5;}
+    .badge-navy{background:var(--navy);color:#fff;}
+    .badge-teal{background:var(--teal-pale);color:var(--teal);border:1px solid #a5f3fc;}
+
+    /* ── Forms ── */
+    .form-group{margin-bottom:14px;}
+    .form-label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+    .form-control{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:13px;padding:7px 10px;transition:.15s;}
+    .form-control:focus{outline:none;border-color:var(--blue2);background:#f0f5ff;}
+    .form-control::placeholder{color:var(--text3);}
+    select.form-control{cursor:pointer;}
+    textarea.form-control{font-family:var(--mono);font-size:12px;resize:vertical;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+    /* ── Table ── */
+    .table-wrap{overflow-x:auto;}
+    table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+    table.data-table thead tr{background:var(--surface2);border-bottom:2px solid var(--border);}
+    table.data-table th{padding:9px 14px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+    table.data-table tbody tr{border-bottom:1px solid var(--border);transition:.12s;}
+    table.data-table tbody tr:last-child{border-bottom:none;}
+    table.data-table tbody tr:hover{background:var(--bg);}
+    table.data-table td{padding:10px 14px;color:var(--text);vertical-align:middle;}
+    .td-mono{font-family:var(--mono);font-size:11px;color:var(--text3);}
+    .td-bold{font-weight:500;}
+
+    /* ── Alerts ── */
+    .alert{padding:10px 14px;border-radius:7px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+    .alert-error{background:var(--red-pale);border:1px solid #fca5a5;color:var(--red);}
+    .alert-success{background:var(--green-pale);border:1px solid #a7f3d0;color:var(--green);}
+    .alert-info{background:var(--blue-pale);border:1px solid #c0d3ff;color:var(--blue);}
+    .alert-amber{background:var(--amber-pale);border:1px solid #fcd34d;color:var(--amber);}
+
+    /* ── Risk Tags ── */
+    .risk-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;}
+    .rt-High{background:var(--red-pale);color:var(--red);border:1px solid #fca5a5;}
+    .rt-Medium{background:var(--amber-pale);color:var(--amber);border:1px solid #fcd34d;}
+    .rt-Low{background:var(--green-pale);color:var(--green);border:1px solid #a7f3d0;}
+    .rt-None{background:var(--bg2);color:var(--text3);border:1px solid var(--border2);}
+
+    /* ── Spinner ── */
+    .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rotate .55s linear infinite;display:inline-block;}
+    @keyframes rotate{to{transform:rotate(360deg)}}
+
+    /* ── Utility ── */
+    .hidden{display:none!important;}
+    .text-muted{color:var(--text3);}
+    .text-mono{font-family:var(--mono);}
+    .mt-1{margin-top:.5rem;} .mt-2{margin-top:1rem;} .mt-3{margin-top:1.5rem;}
+    .mb-1{margin-bottom:.5rem;} .mb-2{margin-bottom:1rem;}
+    .flex{display:flex;} .flex-center{display:flex;align-items:center;}
+    .gap-1{gap:.5rem;} .gap-2{gap:1rem;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+    .w-full{width:100%;}
+    .divider{border:none;border-top:1px solid var(--border);margin:1rem 0;}
+
+    /* ── Footer ── */
+    .footer{background:var(--surface);border-top:1px solid var(--border);padding:10px 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--text3);}
+    .footer strong{color:var(--amber);}
+
+    @media(max-width:768px){
+      .sidebar{display:none;}
+      .form-row,.form-row-3{grid-template-columns:1fr;}
+      .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+{% if current_user.is_authenticated %}
+<!-- Topbar -->
+<div class="topbar">
+  <a class="topbar-brand" href="{{ url_for('dashboard') }}">
+    <div class="brand-mark">🧬</div>
+    <div class="brand-name">Genome<em>Path</em></div>
+  </a>
+  <div class="topbar-sep"></div>
+  <div class="topbar-info"><div class="live-dot"></div> System Live</div>
+
+  <div class="topbar-right">
+    <div class="topbar-info">{{ current_user.department or 'Genomic Medicine' }}</div>
+    <div class="topbar-user">
+      <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+      <div>
+        <div class="user-name">{{ current_user.username }}</div>
+        <div class="user-role">{{ current_user.role }}</div>
+      </div>
+    </div>
+    <form action="{{ url_for('logout') }}" method="get" style="margin:0;">
+      <button class="btn-logout" type="submit">Sign out</button>
+    </form>
+  </div>
+</div>
+
+<div class="app-body">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Main</div>
+      <a class="nav-link {% if request.endpoint=='dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a class="nav-link {% if request.endpoint in ['analyze_page','analyze'] %}active{% endif %}" href="{{ url_for('analyze_page') }}">
+        <span class="nav-icon">🔬</span> Analyze
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Records</div>
+      <a class="nav-link {% if 'patient' in (request.endpoint or '') %}active{% endif %}" href="{{ url_for('patients') }}">
+        <span class="nav-icon">👤</span> Patients
+      </a>
+      <a class="nav-link {% if request.endpoint=='history' %}active{% endif %}" href="{{ url_for('history') }}">
+        <span class="nav-icon">📋</span> History
+      </a>
+      <a class="nav-link {% if request.endpoint=='compare' %}active{% endif %}" href="{{ url_for('compare') }}">
+        <span class="nav-icon">⚖️</span> Compare
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Database</div>
+      <a class="nav-link {% if 'mutation' in (request.endpoint or '') %}active{% endif %}" href="{{ url_for('mutation_library') }}">
+        <span class="nav-icon">🧫</span> Mutation Library
+      </a>
+    </div>
+    {% if current_user.is_admin() %}
+    <div class="sidebar-section">
+      <div class="sidebar-label">Admin</div>
+      <a class="nav-link {% if request.endpoint=='admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">
+        <span class="nav-icon">👥</span> Users
+      </a>
+    </div>
+    {% endif %}
+    <div class="sidebar-footer">
+      <div class="sidebar-version">GenomePath v3.0 · Flask + Biopython</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="padding:.75rem 1.5rem 0;">
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ 'success' if cat=='success' else 'error' if cat=='error' else 'info' }}">
+              {{ '✓' if cat=='success' else '⚠' }} {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<footer class="footer">
+  <div><strong>⚠ Disclaimer:</strong> For research & educational purposes only. Not a substitute for clinical genetic testing.</div>
+  <div class="text-mono">GenomePath v3.0 · {{ current_user.username }}</div>
+</footer>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Patients</div>
+    <div class="page-sub">{{ patients|length }} patient(s) registered</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary btn-sm" href="{{ url_for('new_patient') }}">👤 Add Patient</a>
+  </div>
+</div>
+<div class="page-body">
+
+  <!-- Search bar -->
+  <div class="card mb-2">
+    <div class="card-body" style="padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <input class="form-control" type="text" id="patSearch"
+        placeholder="Search by name..." style="max-width:260px;"/>
+      <select class="form-control" id="patGender" style="max-width:160px;">
+        <option value="">All Genders</option>
+        <option>Male</option><option>Female</option><option>Other</option>
+      </select>
+      <span id="patCount" style="font-size:12px;color:var(--text3);margin-left:auto;"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table" id="patTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Full Name</th>
+            <th>Age</th>
+            <th>Gender</th>
+            <th>Contact Info</th>
+            <th>Samples</th>
+            <th>Analyses</th>
+            <th>Registered</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for p in patients %}
+        <tr data-name="{{ p.full_name|lower }}" data-gender="{{ p.gender or '' }}">
+          <td class="td-mono" style="color:var(--blue);font-weight:600;">{{ p.patient_id }}</td>
+          <td class="td-bold">{{ p.full_name }}</td>
+          <td class="td-mono">{{ p.age or '—' }}</td>
+          <td class="td-mono">{{ p.gender or '—' }}</td>
+          <td class="td-mono">{{ p.contact_info or '—' }}</td>
+          <td class="td-mono">{{ p.sample_count or 0 }}</td>
+          <td class="td-mono">{{ p.analysis_count or 0 }}</td>
+          <td class="td-mono">{{ (p.date_registered or '')[:10] }}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a class="btn btn-secondary btn-sm"
+                href="{{ url_for('edit_patient', pid=p.patient_id) }}">Edit</a>
+              <a class="btn btn-secondary btn-sm"
+                href="{{ url_for('patient_history', pid=p.patient_id) }}">History</a>
+              <form action="{{ url_for('del_patient', pid=p.patient_id) }}"
+                method="POST"
+                onsubmit="return confirm('Delete {{ p.full_name }}?')">
+                <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align:center;padding:32px;color:var(--text3);">
+            No patients yet. <a href="{{ url_for('new_patient') }}" style="color:var(--blue);">Add one →</a>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const rows = document.querySelectorAll('#patTable tbody tr[data-name]');
+function filter() {
+  const s = document.getElementById('patSearch').value.toLowerCase();
+  const g = document.getElementById('patGender').value.toLowerCase();
+  let vis = 0;
+  rows.forEach(row => {
+    const nm = (row.dataset.name || '').toLowerCase();
+    const gn = (row.dataset.gender || '').toLowerCase();
+    const show = (!s || nm.includes(s)) && (!g || gn === g);
+    row.style.display = show ? '' : 'none';
+    if (show) vis++;
+  });
+  document.getElementById('patCount').textContent = vis + ' shown';
+}
+document.getElementById('patSearch').addEventListener('input', filter);
+document.getElementById('patGender').addEventListener('change', filter);
+filter();
+</script>
+{% endblock %}

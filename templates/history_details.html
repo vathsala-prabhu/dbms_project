@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Analysis #{{ record.id }}{% endblock %}
+{% block content %}
+{% set res = record.results %}
+{% set risk = res.risk_summary.overall_risk if res else 'Unknown' %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Analysis #{{ record.id }} — {{ record.patient_name }}</div>
+    <div class="page-sub">{{ record.analyzed_at[:19] if record.analyzed_at else '' }}</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('history') }}">← Back</a>
+  </div>
+</div>
+<div class="page-body">
+
+  <div class="grid-2 mb-2">
+    <!-- Summary -->
+    <div class="card">
+      <div class="card-head"><div class="card-title">Summary</div></div>
+      <div class="card-body">
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          {% for label, val in [
+            ('Patient', record.patient_name),
+            ('Overall Risk', ''),
+            ('Variants Found', res.total_matches if res else '—'),
+            ('Sequence Length', '{:,} bp'.format(res.sequence_stats.length) if res else '—'),
+            ('GC Content', (res.sequence_stats.gc_content|string + '%') if res else '—'),
+            ('Analyst', record.analyst_name or '—'),
+            ('Date', (record.analyzed_at or '')[:19]),
+          ] %}
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:7px 0;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;width:40%;">{{ label }}</td>
+            <td style="padding:7px 0;font-weight:500;">
+              {% if label == 'Overall Risk' %}<span class="risk-tag rt-{{ risk.replace(' ','') }}">{{ risk }}</span>
+              {% else %}{{ val }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% if res and res.risk_summary %}
+        <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.5;">
+          {{ res.risk_summary.recommendation }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Base Stats -->
+    <div class="card">
+      <div class="card-head"><div class="card-title">Sequence Statistics</div></div>
+      <div class="card-body">
+        {% if res and res.sequence_stats %}
+        {% set bc = res.sequence_stats.base_counts %}
+        <div class="grid-2">
+          {% for k,v in bc.items() %}
+          <div style="padding:10px;background:var(--bg);border-radius:6px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:var(--blue);font-family:var(--mono);">{{ v }}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-top:2px;">{{ k }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if record.notes %}
+        <div style="margin-top:12px;padding:10px;background:var(--amber-pale);border:1px solid #fcd34d;border-radius:6px;font-size:12px;">
+          <b>Notes:</b> {{ record.notes }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Compound Het -->
+  {% if res and res.compound_hets %}
+  <div class="mb-2">
+    {% for ch in res.compound_hets %}
+    <div class="alert alert-amber">⚠ <b>Compound Heterozygosity ({{ ch.gene }}):</b> {{ ch.note }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Matches Table -->
+  {% if res and res.matches %}
+  <div class="card mb-2">
+    <div class="card-head">
+      <div class="card-title">🧫 Detected Variants ({{ res.matches|length }})</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Disease</th><th>Risk</th><th>Gene</th><th>SNP ID</th><th>Zygosity</th><th>Strand</th><th>Position</th><th>Description</th></tr></thead>
+        <tbody>
+        {% for m in res.matches %}
+        <tr>
+          <td class="td-bold">{{ m.disease }}</td>
+          <td><span class="risk-tag rt-{{ m.risk_level }}">{{ m.risk_level }}</span></td>
+          <td class="td-mono" style="color:var(--blue);">{{ m.gene }}</td>
+          <td class="td-mono">{{ m.snp_id }}</td>
+          <td><span class="badge {% if m.zygosity=='Homozygous' %}badge-red{% elif m.zygosity=='Heterozygous' %}badge-amber{% else %}badge-teal{% endif %}">{{ m.zygosity }}</span></td>
+          <td class="td-mono">{{ m.strand }}</td>
+          <td class="td-mono">{{ m.position }}</td>
+          <td style="max-width:240px;font-size:12px;color:var(--text2);line-height:1.4;">{{ m.description }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Pharma -->
+  {% if res and res.pharma_report %}
+  <div class="card">
+    <div class="card-head"><div class="card-title">💊 Pharmacogenomic Variants</div></div>
+    <div class="card-body">
+      {% for p in res.pharma_report %}
+      <div style="background:var(--blue-pale);border:1px solid #c0d3ff;border-radius:7px;padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-weight:600;font-size:13px;color:var(--navy);">{{ p.drug_impact }}</div>
+          <span class="risk-tag rt-{{ p.risk_level }}">{{ p.risk_level }}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);">{{ p.snp_id }} · {{ p.gene }} · {{ p.zygosity }}</div>
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.7);border-radius:5px;font-size:12px;color:var(--blue);line-height:1.5;">
+          💡 {{ p.recommendation }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

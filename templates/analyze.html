@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% block title %}Analyze{% endblock %}
+{% block head %}
+<style>
+  .seq-area{font-family:var(--mono);font-size:12px;min-height:140px;}
+  .result-section{display:none;}
+  .result-section.visible{display:block;}
+  .match-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;}
+  .match-card.risk-High{border-left:3px solid var(--red);}
+  .match-card.risk-Medium{border-left:3px solid var(--amber);}
+  .match-card.risk-Low{border-left:3px solid var(--green);}
+  .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem;}
+  .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:12px;text-align:center;}
+  .stat-val{font-size:20px;font-weight:700;color:var(--blue);font-family:var(--mono);}
+  .stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:3px;}
+  .pharma-card{background:var(--blue-pale);border:1px solid #c0d3ff;border-radius:7px;padding:12px;margin-bottom:8px;}
+  .compound-alert{background:var(--amber-pale);border:1px solid #fcd34d;border-radius:7px;padding:10px 14px;margin-bottom:8px;font-size:13px;}
+  .base-bar{height:12px;border-radius:6px;overflow:hidden;display:flex;margin:8px 0;}
+  .base-bar div{height:100%;transition:.4s;}
+  .upload-zone{border:2px dashed var(--border2);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg);}
+  .upload-zone:hover{border-color:var(--blue2);background:var(--blue-pale);}
+  .tab-bar{display:flex;gap:4px;margin-bottom:1rem;border-bottom:2px solid var(--border);}
+  .tab{padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s;}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+  .tab-panel{display:none;} .tab-panel.active{display:block;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">🔬 DNA Analysis</div>
+    <div class="page-sub">Submit a sequence or upload a FASTA file for mutation screening</div>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-secondary btn-sm" id="loadSampleBtn">Load Sample</button>
+  </div>
+</div>
+<div class="page-body">
+  <div class="grid-2" style="align-items:start;">
+
+    <!-- ── Input Panel ── -->
+    <div>
+      <div class="card mb-2">
+        <div class="card-head"><div class="card-title">Patient & Sequence Input</div></div>
+        <div class="card-body">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Patient Name *</label>
+              <input class="form-control" type="text" id="patientName" placeholder="e.g. John Doe" required/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Link to Patient Record</label>
+              <select class="form-control" id="patientId">
+                <option value="">— Anonymous / No record —</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.patient_id }} · {{ p.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ethnicity (optional)</label>
+              <select class="form-control" id="ethnicity">
+                <option value="">— Not specified —</option>
+                <option>Sub-Saharan African</option>
+                <option>Mediterranean</option>
+                <option>Ashkenazi Jewish</option>
+                <option>Northern European</option>
+                <option>European</option>
+                <option>South Asian</option>
+                <option>East Asian</option>
+                <option>Hispanic / Latino</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Input Format</label>
+              <select class="form-control" id="inputFormat">
+                <option value="raw">Raw Sequence (A/T/C/G)</option>
+                <option value="fasta">FASTA Format</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tabs: type / upload -->
+          <div class="tab-bar">
+            <button class="tab active" onclick="switchTab('type',this)">✏️ Type / Paste</button>
+            <button class="tab" onclick="switchTab('upload',this)">📁 Upload File</button>
+          </div>
+
+          <div class="tab-panel active" id="tab-type">
+            <div class="form-group">
+              <label class="form-label">DNA Sequence</label>
+              <textarea class="form-control seq-area" id="dnaSequence" rows="7"
+                placeholder="Paste raw DNA sequence (A, T, C, G, N) or FASTA format here..."></textarea>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="tab-upload">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+              <div style="font-size:28px;margin-bottom:8px;">📄</div>
+              <div style="font-size:13px;font-weight:500;color:var(--text2);">Click to upload or drag & drop</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">.fasta · .fa · .txt — max 16 MB</div>
+            </div>
+            <input type="file" id="fileInput" accept=".fasta,.fa,.txt" style="display:none"/>
+            <div id="uploadStatus" class="mt-1" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+
+          <div class="form-group mt-1">
+            <label class="form-label">Doctor Notes (optional)</label>
+            <textarea class="form-control" id="doctorNotes" rows="2" placeholder="Clinical context, referral reason..."></textarea>
+          </div>
+
+          <div id="analyzeError" class="alert alert-error hidden"></div>
+
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn btn-primary btn-lg" id="analyzeBtn" style="flex:1;">
+              <span id="btnText">🔬 Run Analysis</span>
+              <span id="btnLoader" class="hidden"><span class="spin"></span> Analysing…</span>
+            </button>
+            <button class="btn btn-secondary" id="clearBtn">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Results Panel ── -->
+    <div id="resultsCol">
+      <div id="emptyState" style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:48px;margin-bottom:12px;">🧬</div>
+        <div style="font-size:14px;font-weight:500;">Results will appear here</div>
+        <div style="font-size:12px;margin-top:6px;">Submit a sequence to begin analysis</div>
+      </div>
+
+      <div id="resultsContent" class="hidden">
+
+        <!-- Summary card -->
+        <div class="card mb-2">
+          <div class="card-head">
+            <div class="card-title">Analysis Summary</div>
+            <button class="btn btn-secondary btn-sm" id="downloadPdfBtn">⬇ PDF Report</button>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+              <div>
+                <div id="rPatient" style="font-size:16px;font-weight:700;"></div>
+                <div id="rMeta" style="font-size:12px;color:var(--text3);margin-top:2px;"></div>
+              </div>
+              <div id="rRiskBadge"></div>
+            </div>
+            <div id="rRecommendation" style="background:var(--bg);border-radius:6px;padding:10px;font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;"></div>
+
+            <!-- Stats -->
+            <div class="stat-grid" id="rStats"></div>
+
+            <!-- Base bar -->
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Base Composition</div>
+            <div class="base-bar" id="rBaseBar"></div>
+            <div id="rBaseLegend" style="display:flex;gap:12px;font-size:11px;color:var(--text3);"></div>
+          </div>
+        </div>
+
+        <!-- Compound het alerts -->
+        <div id="rCompoundHet"></div>
+
+        <!-- Clinical Matches -->
+        <div class="card mb-2 result-section" id="secMatches">
+          <div class="card-head"><div class="card-title" id="rMatchTitle">Detected Variants</div></div>
+          <div class="card-body" id="rMatches"></div>
+        </div>
+
+        <!-- Pharma -->
+        <div class="card result-section" id="secPharma">
+          <div class="card-head"><div class="card-title">💊 Pharmacogenomic Variants</div></div>
+          <div class="card-body" id="rPharma"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── File Upload ───────────────────────────────────────────────────────────────
+const fileInput    = document.getElementById('fileInput');
+const uploadStatus = document.getElementById('uploadStatus');
+const uploadZone   = document.getElementById('uploadZone');
+
+['dragover','dragleave','drop'].forEach(ev => {
+  uploadZone.addEventListener(ev, e => {
+    e.preventDefault();
+    uploadZone.style.borderColor = ev === 'drop' || ev === 'dragover' ? 'var(--blue2)' : '';
+    if (ev === 'drop' && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+async function handleFile(file) {
+  uploadStatus.textContent = `Uploading ${file.name}…`;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res  = await fetch('/upload-fasta', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { uploadStatus.textContent = '⚠ ' + data.error; return; }
+    document.getElementById('dnaSequence').value = data.sequence;
+    document.getElementById('inputFormat').value  = 'raw';
+    switchTab('type', document.querySelectorAll('.tab')[0]);
+    uploadStatus.textContent = `✓ Loaded ${data.filename} (${data.sequence.length.toLocaleString()} bp)`;
+  } catch { uploadStatus.textContent = '⚠ Upload failed.'; }
+}
+
+// ── Sample ────────────────────────────────────────────────────────────────────
+document.getElementById('loadSampleBtn').addEventListener('click', async () => {
+  const res  = await fetch('/sample');
+  const data = await res.json();
+  document.getElementById('dnaSequence').value  = data.sample_sequence;
+  document.getElementById('patientName').value  = 'Sample Patient';
+  document.getElementById('inputFormat').value  = 'raw';
+  switchTab('type', document.querySelectorAll('.tab')[0]);
+});
+
+// ── Clear ─────────────────────────────────────────────────────────────────────
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('dnaSequence').value = '';
+  document.getElementById('patientName').value = '';
+  document.getElementById('doctorNotes').value = '';
+  document.getElementById('resultsContent').classList.add('hidden');
+  document.getElementById('emptyState').style.display = '';
+  hideError();
+  lastPayload = null;
+});
+
+// ── Analyse ───────────────────────────────────────────────────────────────────
+let lastPayload = null;
+
+document.getElementById('analyzeBtn').addEventListener('click', async () => {
+  const seq     = document.getElementById('dnaSequence').value.trim();
+  const patient = document.getElementById('patientName').value.trim() || 'Anonymous';
+  if (!seq) { showError('Please enter a DNA sequence.'); return; }
+  hideError();
+  setLoading(true);
+
+  const payload = {
+    patient_name: patient,
+    dna_sequence: seq,
+    is_fasta:     document.getElementById('inputFormat').value === 'fasta',
+    ethnicity:    document.getElementById('ethnicity').value || null,
+    notes:        document.getElementById('doctorNotes').value,
+    patient_id:   document.getElementById('patientId').value || null,
+  };
+  lastPayload = payload;
+
+  try {
+    const res  = await fetch('/analyze', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) { showError(data.error); }
+    else { renderResults(data); }
+  } catch { showError('Server error. Make sure Flask is running.'); }
+  finally { setLoading(false); }
+});
+
+// ── PDF Download ──────────────────────────────────────────────────────────────
+document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
+  if (!lastPayload) return;
+  const btn  = document.getElementById('downloadPdfBtn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  try {
+    const res = await fetch('/report', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(lastPayload)
+    });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m  = cd.match(/filename="?([^"]+)"?/);
+    a.download = m ? m[1] : 'DNA_Report.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch { showError('PDF generation failed.'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+// ── Render Results ────────────────────────────────────────────────────────────
+const BASE_COLORS = {A:'#3b82f6',T:'#f59e0b',C:'#10b981',G:'#ef4444'};
+const RISK_CLASS  = {High:'badge-red',Medium:'badge-amber',Low:'badge-green','None Detected':'badge-teal'};
+
+function renderResults(data) {
+  const { patient_name, sequence_stats, matches, clinical_matches,
+          pharma_report, compound_hets, risk_summary } = data;
+  const bc    = sequence_stats.base_counts;
+  const total = sequence_stats.length;
+  const risk  = risk_summary.overall_risk;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContent').classList.remove('hidden');
+
+  // Header
+  document.getElementById('rPatient').textContent = patient_name;
+  document.getElementById('rMeta').textContent =
+    `${total.toLocaleString()} bp · GC ${sequence_stats.gc_content}% · ${matches.length} variant(s)`;
+  document.getElementById('rRiskBadge').innerHTML =
+    `<span class="badge ${RISK_CLASS[risk] || 'badge-teal'}" style="font-size:13px;padding:5px 14px;">${risk} Risk</span>`;
+  document.getElementById('rRecommendation').textContent = risk_summary.recommendation;
+
+  // Stats
+  document.getElementById('rStats').innerHTML = [
+    [total.toLocaleString(), 'Length (bp)'],
+    [sequence_stats.gc_content + '%', 'GC Content'],
+    [sequence_stats.at_content + '%', 'AT Content'],
+    [matches.length, 'Variants'],
+    [sequence_stats.n_count, 'Ambiguous N'],
+  ].map(([v,l]) => `<div class="stat-box"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
+
+  // Base bar
+  const bar = document.getElementById('rBaseBar');
+  bar.innerHTML = ['A','T','C','G'].map(b =>
+    `<div style="width:${bc[b]/total*100}%;background:${BASE_COLORS[b]};"></div>`
+  ).join('');
+  document.getElementById('rBaseLegend').innerHTML = ['A','T','C','G'].map(b =>
+    `<span><span style="color:${BASE_COLORS[b]};font-weight:700;">${b}</span> ${bc[b].toLocaleString()} (${(bc[b]/total*100).toFixed(1)}%)</span>`
+  ).join('');
+
+  // Compound het
+  const chEl = document.getElementById('rCompoundHet');
+  chEl.innerHTML = (compound_hets||[]).map(ch =>
+    `<div class="compound-alert">⚠ <b>Compound Heterozygosity (${esc(ch.gene)}):</b> ${esc(ch.note)}</div>`
+  ).join('');
+
+  // Clinical matches
+  const secM = document.getElementById('secMatches');
+  const mEl  = document.getElementById('rMatches');
+  if (clinical_matches && clinical_matches.length) {
+    document.getElementById('rMatchTitle').textContent = `🧫 Detected Variants (${clinical_matches.length})`;
+    mEl.innerHTML = clinical_matches.map(m => {
+      const popNote = m.population_note ? `<div style="margin-top:6px;font-size:11px;color:var(--amber);background:var(--amber-pale);padding:4px 8px;border-radius:4px;">🌍 ${esc(m.population_note)}</div>` : '';
+      return `
+        <div class="match-card risk-${m.risk_level}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:13px;">${esc(m.disease)}</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="badge badge-teal">${esc(m.zygosity||'')}</span>
+              <span class="risk-tag rt-${m.risk_level}">${m.risk_level}</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
+            Gene: ${esc(m.gene)} · SNP: ${esc(m.snp_id)} · ${esc(m.strand)} · Pos: ${m.position}
+          </div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5;">${esc(m.description)}</div>
+          ${popNote}
+        </div>`;
+    }).join('');
+    secM.classList.add('visible');
+  } else {
+    mEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--green);font-size:13px;">✓ No disease-associated mutations detected.</div>`;
+    secM.classList.add('visible');
+  }
+
+  // Pharma
+  const secP = document.getElementById('secPharma');
+  const pEl  = document.getElementById('rPharma');
+  if (pharma_report && pharma_report.length) {
+    pEl.innerHTML = pharma_report.map(p => `
+      <div class="pharma-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-weight:600;font-size:13px;color:var(--navy);">${esc(p.drug_impact)}</div>
+          <span class="risk-tag rt-${p.risk_level}">${p.risk_level}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">${esc(p.snp_id)} · ${esc(p.gene)} · ${esc(p.zygosity)}</div>
+        <div style="background:rgba(255,255,255,.7);border-radius:5px;padding:8px;font-size:12px;color:var(--blue);line-height:1.5;">💡 ${esc(p.recommendation)}</div>
+      </div>`).join('');
+    secP.classList.add('visible');
+  } else {
+    secP.classList.remove('visible');
+  }
+
+  document.getElementById('resultsContent').scrollIntoView({behavior:'smooth'});
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setLoading(s) {
+  document.getElementById('analyzeBtn').disabled = s;
+  document.getElementById('btnText').classList.toggle('hidden', s);
+  document.getElementById('btnLoader').classList.toggle('hidden', !s);
+}
+function showError(msg) {
+  const el = document.getElementById('analyzeError');
+  el.textContent = '⚠ ' + msg;
+  el.classList.remove('hidden');
+}
+function hideError() { document.getElementById('analyzeError').classList.add('hidden'); }
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

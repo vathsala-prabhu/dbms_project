@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}History — {{ patient.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ patient.full_name }}</div>
+    <div class="page-sub">Patient ID: {{ patient.patient_id }} · {{ records|length }} analysis record(s)</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('patients') }}">← Patients</a>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('analyze_page') }}">🔬 New Analysis</a>
+  </div>
+</div>
+<div class="page-body">
+
+  <!-- Patient Info Card -->
+  <div class="card mb-2">
+    <div class="card-head"><div class="card-title">Patient Details</div></div>
+    <div class="card-body">
+      <div class="grid-3">
+        {% for label, val in [
+          ('Gender', patient.gender or '—'),
+          ('Date of Birth', patient.date_of_birth or '—'),
+          ('Ethnicity', patient.ethnicity or '—'),
+          ('Phone', patient.phone or '—'),
+          ('Email', patient.email or '—'),
+          ('Registered', (patient.created_at or '')[:10]),
+        ] %}
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;letter-spacing:.05em;">{{ label }}</div>
+          <div style="font-size:13px;color:var(--text);margin-top:3px;">{{ val }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if patient.family_history %}
+      <div style="margin-top:12px;padding:10px;background:var(--amber-pale);border:1px solid #fcd34d;border-radius:6px;font-size:12px;">
+        <b>Family History:</b> {{ patient.family_history }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Analysis Records -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Analysis History</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>#</th><th>Overall Risk</th><th>Variants</th><th>GC %</th><th>Length</th><th>Analyst</th><th>Date</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for r in records %}
+        {% set res = r.results %}
+        {% set risk = res.risk_summary.overall_risk if res else 'Unknown' %}
+        <tr>
+          <td class="td-mono">{{ r.id }}</td>
+          <td><span class="risk-tag rt-{{ risk.replace(' ','') }}">{{ risk }}</span></td>
+          <td class="td-mono">{{ res.total_matches if res else '—' }}</td>
+          <td class="td-mono">{{ res.sequence_stats.gc_content if res else '—' }}%</td>
+          <td class="td-mono">{{ '{:,}'.format(res.sequence_stats.length) if res else '—' }} bp</td>
+          <td class="td-mono">{{ r.analyst_name or '—' }}</td>
+          <td class="td-mono">{{ (r.analyzed_at or '')[:10] }}</td>
+          <td>
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('history_detail', rid=r.id) }}">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3);">No analyses yet for this patient.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

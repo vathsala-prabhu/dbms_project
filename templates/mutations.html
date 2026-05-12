@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Mutation Library{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Mutation Library</div>
+    <div class="page-sub">{{ total }} mutation(s) in database</div>
+  </div>
+  <div class="page-actions">
+    {% if current_user.is_admin() %}
+    <a class="btn btn-primary btn-sm" href="{{ url_for('add_mutation_route') }}">➕ Add Mutation</a>
+    {% endif %}
+  </div>
+</div>
+<div class="page-body">
+
+  <!-- Filters -->
+  <form method="GET" class="card mb-2">
+    <div class="card-body" style="padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <input class="form-control" type="text" name="search" value="{{ search }}"
+        placeholder="Search mutation type, base..." style="max-width:240px;"/>
+      <select class="form-control" name="category" style="max-width:180px;">
+        <option value="">All Types</option>
+        {% for c in categories %}
+        <option {{ 'selected' if category==c else '' }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary" type="submit">Filter</button>
+      <a class="btn btn-secondary" href="{{ url_for('mutation_library') }}">Clear</a>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Mutation Type</th>
+            <th>Position</th>
+            <th>Original Base</th>
+            <th>Mutated Base</th>
+            <th>Sequence ID</th>
+            <th>GC Content</th>
+            {% if current_user.is_admin() %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for m in mutations %}
+        <tr>
+          <td class="td-mono" style="color:var(--blue);font-weight:600;">{{ m.mutation_id }}</td>
+          <td class="td-bold">{{ m.mutation_type or '—' }}</td>
+          <td class="td-mono">{{ m.position or '—' }}</td>
+          <td class="td-mono">{{ m.original_base or '—' }}</td>
+          <td class="td-mono" style="color:var(--red);">{{ m.mutated_base or '—' }}</td>
+          <td class="td-mono">{{ m.sequence_id or '—' }}</td>
+          <td class="td-mono">{{ m.gc_content or '—' }}</td>
+          {% if current_user.is_admin() %}
+          <td>
+            <form action="{{ url_for('del_mutation', mid=m.mutation_id) }}" method="POST"
+              onsubmit="return confirm('Delete mutation #{{ m.mutation_id }}?')">
+              <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3);">No mutations found.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <div style="padding:12px 16px;display:flex;gap:6px;justify-content:center;border-top:1px solid var(--border);">
+      {% for p in range(1, pages+1) %}
+      <a class="btn {% if p==page %}btn-primary{% else %}btn-secondary{% endif %} btn-sm"
+        href="?page={{ p }}&search={{ search }}&category={{ category }}">{{ p }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

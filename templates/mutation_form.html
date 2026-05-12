@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Compare Results{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Compare Analyses</div>
+    <div class="page-sub">Select two records to compare side by side</div>
+  </div>
+</div>
+<div class="page-body">
+
+  <div class="card mb-2">
+    <div class="card-head"><div class="card-title">Select Records</div></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Record A</label>
+          <select class="form-control" id="selA">
+            <option value="">— Select —</option>
+            {% for r in records %}
+            <option value="{{ loop.index0 }}">
+              #{{ r.id }} · {{ r.patient_name }} · {{ (r.analyzed_at or '')[:10] }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Record B</label>
+          <select class="form-control" id="selB">
+            <option value="">— Select —</option>
+            {% for r in records %}
+            <option value="{{ loop.index0 }}">
+              #{{ r.id }} · {{ r.patient_name }} · {{ (r.analyzed_at or '')[:10] }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="compare()">⚖️ Compare</button>
+    </div>
+  </div>
+
+  <div id="compareOut" class="hidden">
+    <div class="grid-2">
+      <div class="card" id="cardA"></div>
+      <div class="card" id="cardB"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const records = {{ records | tojson }};
+
+function renderCard(r, el) {
+  const res  = r.results || {};
+  const risk = (res.risk_summary || {}).overall_risk || 'Unknown';
+  const stats = res.sequence_stats || {};
+  const matches = res.matches || [];
+  const riskCls = {'High':'badge-red','Medium':'badge-amber','Low':'badge-green','None Detected':'badge-teal'}[risk] || 'badge-teal';
+
+  el.innerHTML = `
+    <div class="card-head">
+      <div class="card-title">${r.patient_name}</div>
+      <span class="badge ${riskCls}">${risk}</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-2 mb-1">
+        ${stat('Length', (stats.length||0).toLocaleString()+' bp')}
+        ${stat('GC Content', (stats.gc_content||0)+'%')}
+        ${stat('Variants', res.total_matches||0)}
+        ${stat('Date', (r.analyzed_at||'').slice(0,10))}
+      </div>
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:6px;">Variants Detected</div>
+      ${matches.length === 0
+        ? '<div style="color:var(--text3);font-size:13px;">None detected</div>'
+        : matches.map(m => `
+          <div style="padding:8px;background:var(--bg);border-radius:6px;margin-bottom:6px;font-size:12px;">
+            <div style="font-weight:600;">${m.disease}</div>
+            <div style="color:var(--text3);">${m.gene} · ${m.snp_id} · ${m.zygosity||''}</div>
+          </div>`).join('')
+      }
+    </div>
+  `;
+}
+
+function stat(label, val) {
+  return `<div style="background:var(--bg);border-radius:6px;padding:8px;text-align:center;">
+    <div style="font-size:16px;font-weight:700;color:var(--blue);">${val}</div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">${label}</div>
+  </div>`;
+}
+
+function compare() {
+  const a = document.getElementById('selA').value;
+  const b = document.getElementById('selB').value;
+  if (a === '' || b === '') { alert('Please select two records.'); return; }
+  if (a === b) { alert('Please select two different records.'); return; }
+  renderCard(records[a], document.getElementById('cardA'));
+  renderCard(records[b], document.getElementById('cardB'));
+  document.getElementById('compareOut').classList.remove('hidden');
+  document.getElementById('compareOut').scrollIntoView({behavior:'smooth'});
+}
+</script>
+{% endblock %}

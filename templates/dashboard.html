@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Welcome back, {{ current_user.username }} · {{ now if now else '' }}</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary btn-sm" href="{{ url_for('analyze_page') }}">🔬 New Analysis</a>
+  </div>
+</div>
+<div class="page-body">
+
+  <!-- Stat Cards -->
+  <div class="grid-4 mb-2">
+    {% set stat_cards = [
+      ('👤', stats.patients, 'Patients', 'blue', url_for('patients')),
+      ('🔬', stats.analyses, 'Analyses Run', 'teal', url_for('history')),
+      ('🧫', stats.mutations, 'Mutations in DB', 'green', url_for('mutation_library')),
+      ('👥', stats.users, 'Active Users', 'navy', url_for('admin_users') if current_user.is_admin() else '#'),
+    ] %}
+    {% for icon, val, label, color, link in stat_cards %}
+    <a href="{{ link }}" style="text-decoration:none;">
+      <div class="card" style="transition:.15s;" onmouseover="this.style.borderColor='var(--blue2)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:18px;">
+          <div style="width:44px;height:44px;border-radius:10px;background:var(--blue-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">{{ icon }}</div>
+          <div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);line-height:1;">{{ val }}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;">{{ label }}</div>
+          </div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="grid-2">
+    <!-- Risk Distribution -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Risk Distribution</div>
+        <div class="card-sub">All analyses</div>
+      </div>
+      <div class="card-body">
+        {% set risk_dist = stats.risk_distribution or {} %}
+        {% for level, color, icon in [
+            ('High','red','🔴'),('Medium','amber','🟡'),('Low','green','🟢'),('None Detected','teal','✅')
+        ] %}
+        {% set cnt = risk_dist.get(level, 0) %}
+        {% set total = stats.analyses or 1 %}
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:12px;color:var(--text2);">{{ icon }} {{ level }}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--text);">{{ cnt }}</span>
+          </div>
+          <div style="background:var(--bg2);border-radius:4px;height:6px;overflow:hidden;">
+            <div style="width:{{ (cnt/total*100)|round }}%;height:100%;background:var(--{{ color }});border-radius:4px;transition:.4s;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Recent Analyses -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Recent Analyses</div>
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('history') }}">View all</a>
+      </div>
+      <div class="card-body" style="padding:0;">
+        {% if recent %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Patient</th><th>Risk</th><th>Date</th></tr></thead>
+            <tbody>
+            {% for r in recent %}
+            <tr>
+              <td class="td-bold">{{ r.patient_name }}</td>
+              <td>
+                {% set risk = r.results.risk_summary.overall_risk if r.results else 'Unknown' %}
+                <span class="risk-tag rt-{{ risk.replace(' ','') }}">{{ risk }}</span>
+              </td>
+              <td class="td-mono">{{ r.analyzed_at[:10] if r.analyzed_at else '' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">No analyses yet. <a href="{{ url_for('analyze_page') }}" style="color:var(--blue);">Run one now →</a></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card mt-2">
+    <div class="card-head"><div class="card-title">Quick Actions</div></div>
+    <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="btn btn-primary" href="{{ url_for('analyze_page') }}">🔬 New Analysis</a>
+      <a class="btn btn-secondary" href="{{ url_for('new_patient') }}">👤 Add Patient</a>
+      <a class="btn btn-secondary" href="{{ url_for('history') }}">📋 View History</a>
+      <a class="btn btn-secondary" href="{{ url_for('mutation_library') }}">🧫 Mutation Library</a>
+      <a class="btn btn-secondary" href="{{ url_for('compare') }}">⚖️ Compare Results</a>
+      {% if current_user.is_admin() %}
+      <a class="btn btn-secondary" href="{{ url_for('add_mutation_route') }}">➕ Add Mutation</a>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Analysis History{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Analysis History</div>
+    <div class="page-sub">{{ records|length }} record(s){% if not current_user.is_admin() %} · your analyses only{% endif %}</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary btn-sm" href="{{ url_for('analyze_page') }}">🔬 New Analysis</a>
+  </div>
+</div>
+<div class="page-body">
+
+  <!-- Search/filter bar -->
+  <div class="card mb-2">
+    <div class="card-body" style="padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <input class="form-control" type="text" id="histSearch" placeholder="Search patient name..." style="max-width:220px;"/>
+      <select class="form-control" id="histRisk" style="max-width:160px;">
+        <option value="">All Risk Levels</option>
+        <option>High</option><option>Medium</option><option>Low</option><option>None Detected</option>
+      </select>
+      <span id="histCount" style="font-size:12px;color:var(--text3);margin-left:auto;"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table" id="histTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Patient</th>
+            <th>Overall Risk</th>
+            <th>Variants</th>
+            <th>GC %</th>
+            <th>Length</th>
+            <th>Analyst</th>
+            <th>Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in records %}
+        {% set res = r.results %}
+        {% set risk = res.risk_summary.overall_risk if res else 'Unknown' %}
+        <tr data-name="{{ r.patient_name|lower }}" data-risk="{{ risk }}">
+          <td class="td-mono">{{ r.id }}</td>
+          <td class="td-bold">{{ r.patient_name }}</td>
+          <td><span class="risk-tag rt-{{ risk.replace(' ','') }}">{{ risk }}</span></td>
+          <td class="td-mono">{{ res.total_matches if res else '—' }}</td>
+          <td class="td-mono">{{ res.sequence_stats.gc_content if res else '—' }}%</td>
+          <td class="td-mono">{{ '{:,}'.format(res.sequence_stats.length) if res else '—' }} bp</td>
+          <td class="td-mono">{{ r.analyst_name or '—' }}</td>
+          <td class="td-mono">{{ r.analyzed_at[:10] if r.analyzed_at else '—' }}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('history_detail', rid=r.id) }}">View</a>
+              <form action="{{ url_for('delete_history', rid=r.id) }}" method="POST" onsubmit="return confirm('Delete this record?')">
+                <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3);">No analysis records yet. <a href="{{ url_for('analyze_page') }}" style="color:var(--blue);">Run an analysis →</a></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const rows = document.querySelectorAll('#histTable tbody tr[data-name]');
+function filter() {
+  const s = document.getElementById('histSearch').value.toLowerCase();
+  const r = document.getElementById('histRisk').value.toLowerCase();
+  let vis = 0;
+  rows.forEach(row => {
+    const nm = (row.dataset.name||'').toLowerCase();
+    const rk = (row.dataset.risk||'').toLowerCase();
+    const show = (!s||nm.includes(s)) && (!r||rk===r);
+    row.style.display = show ? '' : 'none';
+    if (show) vis++;
+  });
+  document.getElementById('histCount').textContent = vis + ' shown';
+}
+document.getElementById('histSearch').addEventListener('input', filter);
+document.getElementById('histRisk').addEventListener('change', filter);
+filter();
+</script>
+{% endblock %}
