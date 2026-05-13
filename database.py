@@ -8,12 +8,13 @@ load_dotenv()
 
 DB_CONFIG = {
     'host':     os.getenv('DB_HOST', 'localhost'),
+    'port':     int(os.getenv('DB_PORT', 3306)),
     'user':     os.getenv('DB_USER', 'root'),
     'password': os.getenv('DB_PASSWORD', ''),
     'database': os.getenv('DB_NAME', 'dna_analyzer'),
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────
 
 def get_connection():
     try:
@@ -38,7 +39,7 @@ def convert_datetimes_list(rows):
     return [convert_datetimes(row) for row in rows]
 
 
-# ── Init DB ───────────────────────────────────────────────────────────────────
+# ── Init DB ───────────────────────────────────────────────────
 
 def init_db():
     conn = get_connection()
@@ -48,7 +49,6 @@ def init_db():
     try:
         cur = conn.cursor()
 
-        # Users (for app login)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,7 +63,6 @@ def init_db():
             )
         """)
 
-        # 1. Genes
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Genes (
                 gene_id     INT AUTO_INCREMENT PRIMARY KEY,
@@ -74,7 +73,6 @@ def init_db():
             )
         """)
 
-        # 2. Sequences
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Sequences (
                 sequence_id     INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,7 +84,6 @@ def init_db():
             )
         """)
 
-        # 3. Diseases
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Diseases (
                 disease_id   INT AUTO_INCREMENT PRIMARY KEY,
@@ -97,20 +94,18 @@ def init_db():
             )
         """)
 
-        # 4. Mutations
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Mutations (
-                mutation_id    INT AUTO_INCREMENT PRIMARY KEY,
-                sequence_id    INT,
-                mutation_type  VARCHAR(50),
-                position       INT,
-                original_base  VARCHAR(10),
-                mutated_base   VARCHAR(10),
+                mutation_id   INT AUTO_INCREMENT PRIMARY KEY,
+                sequence_id   INT,
+                mutation_type VARCHAR(50),
+                position      INT,
+                original_base VARCHAR(10),
+                mutated_base  VARCHAR(10),
                 FOREIGN KEY (sequence_id) REFERENCES Sequences(sequence_id) ON DELETE SET NULL
             )
         """)
 
-        # 5. Patients
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Patients (
                 patient_id      INT AUTO_INCREMENT PRIMARY KEY,
@@ -122,7 +117,6 @@ def init_db():
             )
         """)
 
-        # 6. Samples
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Samples (
                 sample_id       INT AUTO_INCREMENT PRIMARY KEY,
@@ -135,7 +129,6 @@ def init_db():
             )
         """)
 
-        # 7. Patient_Analysis
         cur.execute("""
             CREATE TABLE IF NOT EXISTS Patient_Analysis (
                 analysis_id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -153,7 +146,6 @@ def init_db():
             )
         """)
 
-        # analysis_results (for app history/analyzer)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS analysis_results (
                 id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -170,14 +162,14 @@ def init_db():
         """)
 
         conn.commit()
-        print("[DB] All 7 tables + users + analysis_results created/verified.")
+        print("[DB] All tables created/verified.")
     except Error as e:
         print(f"[DB] Init error: {e}")
     finally:
         conn.close()
 
 
-# ── User Functions ────────────────────────────────────────────────────────────
+# ── Users ─────────────────────────────────────────────────────
 
 def create_user(username, email, password_hash, role='doctor', department=None):
     conn = get_connection()
@@ -253,7 +245,7 @@ def toggle_user_active(user_id, active):
         conn.close()
 
 
-# ── Genes ─────────────────────────────────────────────────────────────────────
+# ── Genes ─────────────────────────────────────────────────────
 
 def create_gene(gene_name, chromosome=None, gene_type=None, description=None):
     conn = get_connection()
@@ -295,7 +287,7 @@ def get_gene_by_id(gene_id):
         conn.close()
 
 
-# ── Sequences ─────────────────────────────────────────────────────────────────
+# ── Sequences ─────────────────────────────────────────────────
 
 def create_sequence(sequence_data, gene_id=None, sequence_length=None, gc_content=None):
     conn = get_connection()
@@ -341,7 +333,7 @@ def get_sequence_by_id(sequence_id):
         conn.close()
 
 
-# ── Diseases ──────────────────────────────────────────────────────────────────
+# ── Diseases ──────────────────────────────────────────────────
 
 def create_disease(disease_name, disease_type=None, severity=None, description=None):
     conn = get_connection()
@@ -383,9 +375,9 @@ def get_disease_by_id(disease_id):
         conn.close()
 
 
-# ── Mutations ─────────────────────────────────────────────────────────────────
+# ── Mutations ─────────────────────────────────────────────────
 
-def create_mutation(sequence_id, mutation_type=None, position=None,
+def create_mutation(sequence_id=None, mutation_type=None, position=None,
                     original_base=None, mutated_base=None):
     conn = get_connection()
     if not conn: return None
@@ -410,7 +402,8 @@ def get_all_mutations():
     try:
         cur = conn.cursor(dictionary=True)
         cur.execute("""
-            SELECT m.*, s.gc_content, s.sequence_length FROM Mutations m
+            SELECT m.*, s.gc_content, s.sequence_length
+            FROM Mutations m
             LEFT JOIN Sequences s ON m.sequence_id = s.sequence_id
             ORDER BY m.mutation_id DESC
         """)
@@ -430,7 +423,43 @@ def get_mutation_by_id(mutation_id):
         conn.close()
 
 
-# ── Patients ──────────────────────────────────────────────────────────────────
+def get_mutations_paginated(page=1, per_page=20, search='', risk='', category=''):
+    conn = get_connection()
+    if not conn: return [], 0
+    try:
+        cur = conn.cursor(dictionary=True)
+        where, params = [], []
+        if search:
+            where.append("(m.mutation_type LIKE %s OR m.original_base LIKE %s OR m.mutated_base LIKE %s)")
+            s = f"%{search}%"
+            params += [s, s, s]
+        clause = ("WHERE " + " AND ".join(where)) if where else ""
+        cur.execute(f"SELECT COUNT(*) as cnt FROM Mutations m {clause}", params)
+        total = cur.fetchone()['cnt']
+        offset = (page - 1) * per_page
+        cur.execute(f"""
+            SELECT m.*, s.gc_content, s.sequence_length
+            FROM Mutations m
+            LEFT JOIN Sequences s ON m.sequence_id = s.sequence_id
+            {clause} ORDER BY m.mutation_id DESC LIMIT %s OFFSET %s
+        """, params + [per_page, offset])
+        return cur.fetchall(), total
+    finally:
+        conn.close()
+
+
+def get_mutation_categories():
+    conn = get_connection()
+    if not conn: return []
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT mutation_type FROM Mutations WHERE mutation_type IS NOT NULL ORDER BY mutation_type")
+        return [r[0] for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+# ── Patients ──────────────────────────────────────────────────
 
 def create_patient(full_name, age=None, gender=None,
                    contact_info=None, date_registered=None):
@@ -508,7 +537,7 @@ def delete_patient(pid):
         conn.close()
 
 
-# ── Samples ───────────────────────────────────────────────────────────────────
+# ── Samples ───────────────────────────────────────────────────
 
 def create_sample(patient_id, sample_type=None, collection_date=None,
                   file_name=None, status='Pending'):
@@ -579,9 +608,9 @@ def update_sample_status(sample_id, status):
         conn.close()
 
 
-# ── Patient Analysis ──────────────────────────────────────────────────────────
+# ── Patient Analysis ──────────────────────────────────────────
 
-def create_analysis(sample_id, sequence_id=None, mutation_id=None,
+def create_analysis(sample_id=None, sequence_id=None, mutation_id=None,
                     disease_id=None, prediction_confidence=None,
                     result_summary=None):
     conn = get_connection()
@@ -640,10 +669,10 @@ def get_analysis_by_id(analysis_id):
               m.mutation_type, m.position, m.original_base, m.mutated_base,
               seq.sequence_length, seq.gc_content
             FROM Patient_Analysis pa
-            LEFT JOIN Samples s    ON pa.sample_id   = s.sample_id
-            LEFT JOIN Patients p   ON s.patient_id   = p.patient_id
-            LEFT JOIN Diseases d   ON pa.disease_id  = d.disease_id
-            LEFT JOIN Mutations m  ON pa.mutation_id = m.mutation_id
+            LEFT JOIN Samples s     ON pa.sample_id   = s.sample_id
+            LEFT JOIN Patients p    ON s.patient_id   = p.patient_id
+            LEFT JOIN Diseases d    ON pa.disease_id  = d.disease_id
+            LEFT JOIN Mutations m   ON pa.mutation_id = m.mutation_id
             LEFT JOIN Sequences seq ON pa.sequence_id = seq.sequence_id
             WHERE pa.analysis_id=%s
         """, (analysis_id,))
@@ -671,7 +700,7 @@ def get_analyses_by_patient(patient_id):
         conn.close()
 
 
-# ── analysis_results (app history) ───────────────────────────────────────────
+# ── analysis_results (app history) ───────────────────────────
 
 def fetch_all_mutations():
     conn = get_connection()
@@ -751,23 +780,24 @@ def delete_result(rid):
         conn.close()
 
 
-# ── Dashboard Stats ───────────────────────────────────────────────────────────
+# ── Dashboard Stats ───────────────────────────────────────────
 
 def get_dashboard_stats():
     conn = get_connection()
     if not conn: return {}
     try:
         cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT COUNT(*) as c FROM Patients");          patients  = cur.fetchone()['c']
-        cur.execute("SELECT COUNT(*) as c FROM Patient_Analysis");  analyses  = cur.fetchone()['c']
-        cur.execute("SELECT COUNT(*) as c FROM Mutations");         mutations = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Patients");         patients  = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Patient_Analysis"); analyses  = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Mutations");        mutations = cur.fetchone()['c']
         cur.execute("SELECT COUNT(*) as c FROM users WHERE is_active=TRUE"); users = cur.fetchone()['c']
-        cur.execute("SELECT COUNT(*) as c FROM Genes");             genes     = cur.fetchone()['c']
-        cur.execute("SELECT COUNT(*) as c FROM Diseases");          diseases  = cur.fetchone()['c']
-        cur.execute("SELECT COUNT(*) as c FROM Samples");           samples   = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Genes");            genes     = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Diseases");         diseases  = cur.fetchone()['c']
+        cur.execute("SELECT COUNT(*) as c FROM Samples");          samples   = cur.fetchone()['c']
 
         cur.execute("""
-            SELECT JSON_EXTRACT(results, '$.risk_summary.overall_risk') as risk, COUNT(*) as cnt
+            SELECT JSON_EXTRACT(results, '$.risk_summary.overall_risk') as risk,
+                   COUNT(*) as cnt
             FROM analysis_results GROUP BY risk
         """)
         risk_dist = {
@@ -788,41 +818,5 @@ def get_dashboard_stats():
             'genes': genes, 'diseases': diseases, 'samples': samples,
             'risk_distribution': risk_dist, 'recent_analyses': recent,
         }
-    finally:
-        conn.close()
-
-
-def get_mutations_paginated(page=1, per_page=20, search='', risk='', category=''):
-    conn = get_connection()
-    if not conn: return [], 0
-    try:
-        cur = conn.cursor(dictionary=True)
-        where, params = [], []
-        if search:
-            where.append("(m.mutation_type LIKE %s OR m.original_base LIKE %s OR m.mutated_base LIKE %s)")
-            s = f"%{search}%"
-            params += [s, s, s]
-        clause = ("WHERE " + " AND ".join(where)) if where else ""
-        cur.execute(f"SELECT COUNT(*) as cnt FROM Mutations m {clause}", params)
-        total = cur.fetchone()['cnt']
-        offset = (page - 1) * per_page
-        cur.execute(f"""
-            SELECT m.*, s.gc_content, s.sequence_length
-            FROM Mutations m
-            LEFT JOIN Sequences s ON m.sequence_id = s.sequence_id
-            {clause} ORDER BY m.mutation_id DESC LIMIT %s OFFSET %s
-        """, params + [per_page, offset])
-        return cur.fetchall(), total
-    finally:
-        conn.close()
-
-
-def get_mutation_categories():
-    conn = get_connection()
-    if not conn: return []
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT mutation_type FROM Mutations WHERE mutation_type IS NOT NULL ORDER BY mutation_type")
-        return [r[0] for r in cur.fetchall()]
     finally:
         conn.close()
