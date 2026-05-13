@@ -81,7 +81,7 @@ def apply_population_risk(matches: list, ethnicity: str) -> list:
         m['population_modifier'] = mod.get(ethnicity, 1.0)
         if m['population_modifier'] > 1.0:
             m['population_note'] = (
-                f"Risk elevated {m['population_modifier']}× for {ethnicity} ancestry."
+                f"Risk elevated {m['population_modifier']}x for {ethnicity} ancestry."
             )
         else:
             m['population_note'] = None
@@ -93,12 +93,12 @@ def build_pharma_report(matches: list) -> list:
     for m in matches:
         if str(m['snp_id']) in PHARMA_SNP_IDS:
             pharma.append({
-                'snp_id':      m['snp_id'],
-                'gene':        m['gene'],
-                'drug_impact': m['disease'],
-                'risk_level':  m['risk_level'],
-                'zygosity':    m.get('zygosity', 'Unknown'),
-                'description': m['description'],
+                'snp_id':         m['snp_id'],
+                'gene':           m['gene'],
+                'drug_impact':    m['disease'],
+                'risk_level':     m['risk_level'],
+                'zygosity':       m.get('zygosity', 'Unknown'),
+                'description':    m['description'],
                 'recommendation': _pharma_recommendation(
                     str(m['snp_id']), m.get('zygosity', 'Unknown')
                 )
@@ -108,8 +108,8 @@ def build_pharma_report(matches: list) -> list:
 
 def _pharma_recommendation(snp_id: str, zygosity: str) -> str:
     recs = {
-        'rs1799853': "Consider 25–50% dose reduction for warfarin. Monitor INR closely.",
-        'rs1057910': "CYP2C9*3: Reduce warfarin dose by 50–75%. High bleeding risk at standard doses.",
+        'rs1799853': "Consider 25-50% dose reduction for warfarin. Monitor INR closely.",
+        'rs1057910': "CYP2C9*3: Reduce warfarin dose by 50-75%. High bleeding risk at standard doses.",
         'rs9923231': "VKORC1 sensitive variant. Use algorithm-based warfarin dosing.",
         'rs4986893': "Clopidogrel poor metaboliser. Consider alternative antiplatelet.",
         'rs3892097': "CYP2D6 variant. Codeine/tramadol may be ineffective or toxic.",
@@ -124,15 +124,26 @@ def _pharma_recommendation(snp_id: str, zygosity: str) -> str:
 
 
 def _infer_risk(mutation_type: str, original_base: str, mutated_base: str) -> str:
-    """Infer a risk level from mutation properties."""
+    """Infer risk level from mutation properties when not provided by DB."""
     if not mutation_type:
         return 'Low'
     mt = mutation_type.lower()
-    if 'deletion' in mt or 'frameshift' in mt or 'nonsense' in mt:
+    if any(x in mt for x in ['deletion', 'frameshift', 'nonsense', 'truncat']):
         return 'High'
-    if 'insertion' in mt or 'duplication' in mt:
+    if any(x in mt for x in ['insertion', 'duplication', 'missense']):
         return 'Medium'
     return 'Low'
+
+
+def _map_severity_to_risk(severity: str) -> str:
+    """Map disease severity to risk level."""
+    mapping = {
+        'Critical': 'High',
+        'High':     'High',
+        'Medium':   'Medium',
+        'Low':      'Low',
+    }
+    return mapping.get(severity, 'Low')
 
 
 def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
@@ -154,10 +165,10 @@ def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
     at_content = round(((a_count + t_count) / total) * 100, 2) if total > 0 else 0
 
     stats = {
-        "length":     total,
-        "gc_content": gc_content,
-        "at_content": at_content,
-        "n_count":    n_count,
+        "length":      total,
+        "gc_content":  gc_content,
+        "at_content":  at_content,
+        "n_count":     n_count,
         "base_counts": {"A": a_count, "T": t_count, "C": c_count, "G": g_count}
     }
 
@@ -166,19 +177,18 @@ def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
     matches      = []
 
     for mutation in mutations:
-        # Build a pattern from mutated_base (new schema)
-        # Fall back to mutation_sequence if present (old schema)
+        # Priority: mutation_sequence > mutated_base > mutation_sequence (old schema)
         pattern = (
-            mutation.get('mutated_base') or
             mutation.get('mutation_sequence') or
+            mutation.get('mutated_base') or
             ''
         ).upper().strip()
 
-        # Skip patterns that are too short or are just dashes (deletions)
-        if not pattern or len(pattern) < 2 or pattern == '-':
+        # Skip patterns that are too short or are just dashes (deletions markers)
+        if not pattern or len(pattern) < 2 or set(pattern) == {'-'}:
             continue
 
-        # Only keep DNA characters
+        # Keep only valid DNA characters
         pattern = ''.join(ch for ch in pattern if ch in 'ATCGN')
         if len(pattern) < 2:
             continue
@@ -190,20 +200,47 @@ def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
             position = sequence.find(pattern) if found_forward else reverse_comp.find(pattern)
             zygosity = detect_zygosity(sequence, pattern, reverse_comp)
 
-            # Support both old schema (snp_id, gene, disease, risk_level, description)
-            # and new schema (mutation_id, mutation_type, original_base, mutated_base)
-            snp_id      = mutation.get('snp_id') or str(mutation.get('mutation_id', ''))
-            gene        = mutation.get('gene') or mutation.get('gene_name') or 'Unknown'
-            disease     = mutation.get('disease') or mutation.get('mutation_type') or 'Unknown'
-            risk_level  = mutation.get('risk_level') or _infer_risk(
-                mutation.get('mutation_type', ''),
-                mutation.get('original_base', ''),
-                mutation.get('mutated_base', '')
+            # ── Disease name (from joined Diseases table) ──────────────
+            disease = (
+                mutation.get('disease_name') or
+                mutation.get('disease') or
+                mutation.get('mutation_type') or
+                'Unknown Condition'
             )
-            description = mutation.get('description') or (
-                f"Mutation type: {mutation.get('mutation_type', 'Unknown')} | "
-                f"Position: {mutation.get('position', '?')} | "
-                f"{mutation.get('original_base', '?')} → {mutation.get('mutated_base', '?')}"
+
+            # ── Gene name (from joined Genes table) ───────────────────
+            gene = (
+                mutation.get('gene_name') or
+                mutation.get('gene') or
+                'Unknown Gene'
+            )
+
+            # ── Risk level ─────────────────────────────────────────────
+            risk_level = (
+                mutation.get('risk_level') or
+                _map_severity_to_risk(mutation.get('severity', '')) or
+                _infer_risk(
+                    mutation.get('mutation_type', ''),
+                    mutation.get('original_base', ''),
+                    mutation.get('mutated_base', '')
+                )
+            )
+
+            # ── Description ────────────────────────────────────────────
+            description = (
+                mutation.get('disease_description') or
+                mutation.get('description') or
+                (
+                    f"Mutation type: {mutation.get('mutation_type', 'Unknown')} | "
+                    f"Position: {mutation.get('position', '?')} | "
+                    f"{mutation.get('original_base', '?')} to {mutation.get('mutated_base', '?')}"
+                )
+            )
+
+            # ── SNP ID ─────────────────────────────────────────────────
+            snp_id = (
+                mutation.get('snp_id') or
+                f"MUT-{mutation.get('mutation_id', '?')}"
             )
 
             match_obj = {
@@ -212,7 +249,7 @@ def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
                 "disease":     disease,
                 "risk_level":  risk_level,
                 "description": description,
-                "category":    mutation.get('category') or mutation.get('mutation_type'),
+                "category":    mutation.get('disease_type') or mutation.get('mutation_type'),
                 "chromosome":  mutation.get('chromosome'),
                 "strand":      "Forward" if found_forward else "Reverse Complement",
                 "position":    position,
@@ -220,11 +257,11 @@ def analyze_dna(dna_sequence: str, ethnicity: str = None) -> dict:
             }
             matches.append(match_obj)
 
-    matches        = apply_population_risk(matches, ethnicity)
-    compound_hets  = detect_compound_het(matches)
-    pharma_report  = build_pharma_report(matches)
+    matches          = apply_population_risk(matches, ethnicity)
+    compound_hets    = detect_compound_het(matches)
+    pharma_report    = build_pharma_report(matches)
     clinical_matches = [m for m in matches if str(m['snp_id']) not in PHARMA_SNP_IDS]
-    risk_summary   = compute_risk_summary(clinical_matches)
+    risk_summary     = compute_risk_summary(clinical_matches)
 
     return {
         "sequence_stats":   stats,
