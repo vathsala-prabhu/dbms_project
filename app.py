@@ -416,8 +416,18 @@ def patient_history(pid):
         flash('Patient not found.', 'error')
         return redirect(url_for('patients'))
     patient = stringify_datetimes(patient)
-    records = get_analyses_by_patient(pid)
+
+    # ── FIX: use fetch_all_results (analysis_results table, PK=id)
+    # instead of get_analyses_by_patient (Patient_Analysis table, PK=analysis_id)
+    # so that r.id exists and history_detail links work correctly.
+    records = fetch_all_results(patient_id=pid)
+    for r in records:
+        try:
+            r['results'] = json.loads(r['results'])
+        except Exception:
+            r['results'] = {}
     records = stringify_datetimes(records)
+
     samples = get_samples_by_patient(pid)
     samples = stringify_datetimes(samples)
     return render_template('patient_history.html',
