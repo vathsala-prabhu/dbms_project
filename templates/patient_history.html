@@ -19,12 +19,10 @@
     <div class="card-body">
       <div class="grid-3">
         {% for label, val in [
-          ('Gender', patient.gender or '—'),
-          ('Date of Birth', patient.date_of_birth or '—'),
-          ('Ethnicity', patient.ethnicity or '—'),
-          ('Phone', patient.phone or '—'),
-          ('Email', patient.email or '—'),
-          ('Registered', (patient.created_at or '')[:10]),
+          ('Gender',      patient.gender or '—'),
+          ('Age',         patient.age or '—'),
+          ('Contact',     patient.contact_info or '—'),
+          ('Registered',  (patient.date_registered or '')[:10]),
         ] %}
         <div>
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;letter-spacing:.05em;">{{ label }}</div>
@@ -32,16 +30,11 @@
         </div>
         {% endfor %}
       </div>
-      {% if patient.family_history %}
-      <div style="margin-top:12px;padding:10px;background:var(--amber-pale);border:1px solid #fcd34d;border-radius:6px;font-size:12px;">
-        <b>Family History:</b> {{ patient.family_history }}
-      </div>
-      {% endif %}
     </div>
   </div>
 
   <!-- Analysis Records -->
-  <div class="card">
+  <div class="card mb-2">
     <div class="card-head">
       <div class="card-title">Analysis History</div>
     </div>
@@ -73,5 +66,36 @@
       </table>
     </div>
   </div>
+
+  <!-- Samples -->
+  {% if samples %}
+  <div class="card">
+    <div class="card-head"><div class="card-title">Biological Samples</div></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Sample ID</th><th>Type</th><th>Status</th><th>Collection Date</th></tr>
+        </thead>
+        <tbody>
+        {% for s in samples %}
+        <tr>
+          <td class="td-mono">{{ s.sample_id }}</td>
+          <td class="td-bold">{{ s.sample_type or '—' }}</td>
+          <td>
+            <span class="badge {% if s.status == 'Completed' %}badge-green{% elif s.status == 'Pending' %}badge-amber{% else %}badge-teal{% endif %}">
+              {{ s.status or '—' }}
+            </span>
+          </td>
+          <td class="td-mono">{{ (s.collection_date or '')[:10] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text3);">No samples recorded.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
